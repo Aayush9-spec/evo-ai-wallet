@@ -1,7 +1,8 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Menu, X, ChevronDown, Diamond, ChevronUp, BarChartHorizontal, MessageSquareText, Brain } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Menu, X, ChevronDown, Diamond, ChevronUp, BarChartHorizontal, MessageSquareText, Brain, LogOut, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +14,16 @@ import {
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, logOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleLogout = async () => {
+    await logOut();
+    navigate("/");
   };
 
   return (
@@ -79,12 +87,30 @@ export function Navbar() {
           {/* Theme Toggle & Auth Buttons */}
           <div className="hidden md:flex items-center space-x-3">
             <ThemeToggle />
-            <Link to="/login">
-              <Button variant="outline">Login</Button>
-            </Link>
-            <Link to="/signup">
-              <Button className="bg-crypto-purple hover:bg-crypto-deep-purple text-white">Sign Up</Button>
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium hidden lg:inline-block">
+                  {user.displayName || user.email}
+                </span>
+                <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
+                  <LogOut size={20} />
+                </Button>
+                <Link to="/dashboard">
+                  <Button className="bg-crypto-purple hover:bg-crypto-deep-purple text-white">
+                    Dashboard
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <>
+                <Link to="/login">
+                  <Button variant="outline">Login</Button>
+                </Link>
+                <Link to="/signup">
+                  <Button className="bg-crypto-purple hover:bg-crypto-deep-purple text-white">Sign Up</Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -181,12 +207,28 @@ export function Navbar() {
               </div>
             </Link>
             <div className="pt-3 flex flex-col space-y-2">
-              <Link to="/login" onClick={toggleMenu}>
-                <Button variant="outline" className="w-full">Login</Button>
-              </Link>
-              <Link to="/signup" onClick={toggleMenu}>
-                <Button className="w-full bg-crypto-purple hover:bg-crypto-deep-purple text-white">Sign Up</Button>
-              </Link>
+              {user ? (
+                <>
+                  <div className="px-4 py-2 text-sm font-medium text-muted-foreground">
+                    Signed in as {user.displayName || user.email}
+                  </div>
+                  <Link to="/dashboard" onClick={toggleMenu}>
+                    <Button className="w-full bg-crypto-purple hover:bg-crypto-deep-purple text-white">Dashboard</Button>
+                  </Link>
+                  <Button variant="outline" className="w-full" onClick={() => { handleLogout(); toggleMenu(); }}>
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={toggleMenu}>
+                    <Button variant="outline" className="w-full">Login</Button>
+                  </Link>
+                  <Link to="/signup" onClick={toggleMenu}>
+                    <Button className="w-full bg-crypto-purple hover:bg-crypto-deep-purple text-white">Sign Up</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

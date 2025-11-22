@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -47,15 +48,26 @@ const securityFormSchema = z.object({
 const Settings = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const profileForm = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      username: "cryptotrader",
-      email: "user@example.com",
-      name: "John Doe",
+      username: user?.displayName?.toLowerCase().replace(/\s/g, '') || "",
+      email: user?.email || "",
+      name: user?.displayName || "",
     },
   });
+
+  useEffect(() => {
+    if (user) {
+      profileForm.reset({
+        username: user.displayName?.toLowerCase().replace(/\s/g, '') || "",
+        email: user.email || "",
+        name: user.displayName || "",
+      });
+    }
+  }, [user, profileForm]);
 
   const securityForm = useForm<z.infer<typeof securityFormSchema>>({
     resolver: zodResolver(securityFormSchema),
@@ -111,7 +123,7 @@ const Settings = () => {
             <span className="hidden sm:inline">Wallets</span>
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="profile" className="mt-6">
           <Card>
             <CardHeader>
@@ -172,7 +184,7 @@ const Settings = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="security" className="mt-6">
           <Card className="mb-6">
             <CardHeader>
@@ -232,7 +244,7 @@ const Settings = () => {
               </Form>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Two-Factor Authentication</CardTitle>
@@ -249,7 +261,7 @@ const Settings = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="notifications" className="mt-6">
           <Card>
             <CardHeader>
@@ -294,7 +306,7 @@ const Settings = () => {
                 </div>
                 <Switch defaultChecked />
               </div>
-              
+
               <div className="flex justify-end">
                 <Button type="button" className="bg-crypto-purple hover:bg-crypto-deep-purple flex items-center gap-2">
                   <Save size={16} /> Save Preferences
@@ -303,7 +315,7 @@ const Settings = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="wallets" className="mt-6">
           <Card>
             <CardHeader>
@@ -325,7 +337,7 @@ const Settings = () => {
                 </div>
                 <Button variant="outline" size="sm">Disconnect</Button>
               </div>
-              
+
               <div className="border rounded-md p-4 flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <div className="rounded-full bg-crypto-purple/20 p-2">
@@ -338,7 +350,7 @@ const Settings = () => {
                 </div>
                 <Button variant="outline" size="sm">Disconnect</Button>
               </div>
-              
+
               <Button className="w-full bg-muted/50 hover:bg-muted flex justify-center items-center gap-2 text-primary mt-4">
                 <Wallet size={16} /> Connect New Wallet
               </Button>

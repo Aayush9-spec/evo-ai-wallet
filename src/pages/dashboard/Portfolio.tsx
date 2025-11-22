@@ -5,13 +5,35 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { ArrowUpRight, ArrowDownRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import { fetchTopCryptos } from "@/services/cryptoApi";
+
 const Portfolio = () => {
   const [portfolioData, setPortfolioData] = useState([
-    { name: "Bitcoin", value: 45, color: "#F7931A", amount: 0.75, price: 60000, change: 2.4 },
-    { name: "Ethereum", value: 30, color: "#627EEA", amount: 5.2, price: 3400, change: -1.2 },
-    { name: "Solana", value: 15, color: "#9945FF", amount: 42.5, price: 145, change: 5.7 },
-    { name: "Cardano", value: 10, color: "#0033AD", amount: 1020, price: 0.45, change: -0.8 },
+    { name: "Bitcoin", value: 45, color: "#F7931A", amount: 0.75, price: 0, change: 0, symbol: "BTC" },
+    { name: "Ethereum", value: 30, color: "#627EEA", amount: 5.2, price: 0, change: 0, symbol: "ETH" },
+    { name: "Solana", value: 15, color: "#9945FF", amount: 42.5, price: 0, change: 0, symbol: "SOL" },
+    { name: "Cardano", value: 10, color: "#0033AD", amount: 1020, price: 0, change: 0, symbol: "ADA" },
   ]);
+
+  useEffect(() => {
+    const loadPrices = async () => {
+      const cryptos = await fetchTopCryptos(20);
+      if (cryptos) {
+        setPortfolioData(prevData => prevData.map(item => {
+          const crypto = cryptos.find(c => c.symbol === item.symbol);
+          if (crypto) {
+            return {
+              ...item,
+              price: crypto.quote.USD.price,
+              change: crypto.quote.USD.percent_change_24h
+            };
+          }
+          return item;
+        }));
+      }
+    };
+    loadPrices();
+  }, []);
 
   const totalValue = portfolioData.reduce((acc, coin) => acc + coin.amount * coin.price, 0);
 
@@ -62,9 +84,9 @@ const Portfolio = () => {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value, name) => [`${value}%`, name]}
-                      contentStyle={{ backgroundColor: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)' }} 
+                      contentStyle={{ backgroundColor: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)' }}
                     />
                     <Legend />
                   </PieChart>

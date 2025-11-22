@@ -4,9 +4,7 @@ import axios from "axios";
 // Prefer environment variable (Vite exposes variables prefixed with VITE_ to the client).
 // If an env var is not provided, we fallback to the in-repo key for backward compatibility,
 // but this is unsafe for public repos and should be replaced with a secret in CI/CD.
-const GROQ_API_KEY = (import.meta.env as any).VITE_GROQ_API_KEY || "enter your gork api \
- 
-  ";
+const GROQ_API_KEY = (import.meta.env as any).VITE_GROQ_API_KEY || "enter your gork api";
 
 if (!((import.meta.env as any).VITE_GROQ_API_KEY)) {
   // Warn in dev when the repo contains a hardcoded key
@@ -26,15 +24,15 @@ interface AIAnalysisResponse {
 // Helper functions for parsing AI responses
 const determineSentiment = (aiResponse: string): "bullish" | "bearish" | "neutral" => {
   const lowerCaseResponse = aiResponse.toLowerCase();
-  if (lowerCaseResponse.includes("bullish") || 
-      lowerCaseResponse.includes("positive") || 
-      lowerCaseResponse.includes("upward") || 
-      lowerCaseResponse.includes("growth")) {
+  if (lowerCaseResponse.includes("bullish") ||
+    lowerCaseResponse.includes("positive") ||
+    lowerCaseResponse.includes("upward") ||
+    lowerCaseResponse.includes("growth")) {
     return "bullish";
-  } else if (lowerCaseResponse.includes("bearish") || 
-            lowerCaseResponse.includes("negative") || 
-            lowerCaseResponse.includes("downward") || 
-            lowerCaseResponse.includes("decline")) {
+  } else if (lowerCaseResponse.includes("bearish") ||
+    lowerCaseResponse.includes("negative") ||
+    lowerCaseResponse.includes("downward") ||
+    lowerCaseResponse.includes("decline")) {
     return "bearish";
   }
   return "neutral";
@@ -50,13 +48,13 @@ const calculateConfidence = (aiResponse: string): number => {
     { pattern: /unlikely|doubtful|improbable/i, value: 0.25 },
     { pattern: /highly unlikely|very doubtful|extremely improbable/i, value: 0.1 },
   ];
-  
+
   for (const { pattern, value } of confidencePatterns) {
     if (pattern.test(aiResponse)) {
       return value;
     }
   }
-  
+
   // Default confidence if no patterns match
   return 0.6;
 };
@@ -64,7 +62,7 @@ const calculateConfidence = (aiResponse: string): number => {
 const extractKeyPoints = (aiResponse: string): string[] => {
   // Split by common list markers
   const splitByBullet = aiResponse.split(/•|\*|\-|\d+\.\s/);
-  
+
   // If we have bullet points, process them
   if (splitByBullet.length > 1) {
     return splitByBullet
@@ -72,10 +70,10 @@ const extractKeyPoints = (aiResponse: string): string[] => {
       .filter(point => point.length > 10) // Filter out too short items
       .slice(0, 5); // Limit to 5 key points
   }
-  
+
   // If no bullet points found, try to extract sentences
   const sentences = aiResponse.split(/\.(?!\d)/g); // Split by periods not followed by digits
-  
+
   return sentences
     .map(sentence => sentence.trim())
     .filter(sentence => sentence.length > 15 && sentence.length < 100)
@@ -144,13 +142,13 @@ const mockAnalysisResponses: Record<string, AIAnalysisResponse> = {
 export const getAIAnalysis = async (cryptoSymbol: string): Promise<AIAnalysisResponse> => {
   try {
     const symbol = cryptoSymbol.toUpperCase();
-    
+
     // Use mock data if flag is true and we have a mock response for this symbol
     if (USE_MOCK_DATA && mockAnalysisResponses[symbol]) {
       console.log(`Using mock data for ${symbol}`);
       return mockAnalysisResponses[symbol];
     }
-    
+
     // Make an actual API call to Groq
     console.log(`Calling Groq API for ${symbol} analysis`);
     const response = await axios.post(
@@ -186,7 +184,7 @@ export const getAIAnalysis = async (cryptoSymbol: string): Promise<AIAnalysisRes
       console.error('Groq API response missing expected content', response?.data);
       throw new Error('Invalid response from Groq API');
     }
-    
+
     // Process and structure the AI response
     const processedResponse: AIAnalysisResponse = {
       analysis: aiResponse,
@@ -194,7 +192,7 @@ export const getAIAnalysis = async (cryptoSymbol: string): Promise<AIAnalysisRes
       confidence: calculateConfidence(aiResponse),
       keyPoints: extractKeyPoints(aiResponse),
     };
-    
+
     return processedResponse;
   } catch (error) {
     // Improved axios error logging to surface status and server message
@@ -207,7 +205,7 @@ export const getAIAnalysis = async (cryptoSymbol: string): Promise<AIAnalysisRes
     } else {
       console.error("Error fetching AI analysis:", err?.message || err);
     }
-    
+
     // Return a fallback response on error
     return {
       analysis: "Unable to generate analysis at this time. Please try again later.",
@@ -234,10 +232,10 @@ export const getChatbotResponse = async (message: string): Promise<string> => {
       } else if (message.toLowerCase().includes("market")) {
         return "The current market sentiment is cautiously optimistic. Bitcoin dominance is at 43%, suggesting altcoins could perform well if market momentum continues. Always maintain a balanced portfolio and only invest what you can afford to lose.";
       }
-      
+
       return "I'm your crypto AI assistant. I can help analyze market trends, provide insights on specific cryptocurrencies, or suggest investment strategies based on your goals and risk tolerance. What specific information are you looking for?";
     }
-    
+
     // Make an actual API call to Groq
     console.log("Calling Groq API for chatbot response");
     const response = await axios.post(
@@ -262,7 +260,7 @@ export const getChatbotResponse = async (message: string): Promise<string> => {
         },
       }
     );
-    
+
     const content = response?.data?.choices?.[0]?.message?.content;
     console.log("Received Groq API response for chat", { status: response?.status, hasContent: Boolean(content) });
     if (!content) {
