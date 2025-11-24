@@ -104,7 +104,7 @@ const Signup = () => {
 
       toast({
         title: "Google Sign-In failed",
-        description: errorMessage,
+        description: `Error: ${error.code} - ${error.message}`,
         variant: "destructive",
       });
     } finally {

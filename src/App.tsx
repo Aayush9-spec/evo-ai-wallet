@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
 import SignupNow from "./pages/SignupNow";
 import Dashboard from "./pages/Dashboard";
 import Cryptocurrencies from "./pages/Markets/Cryptocurrencies";
@@ -37,10 +38,11 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Layout><Index /></Layout>} />
-              <Route path="/login" element={<Layout><Login /></Layout>} />
-              <Route path="/signup" element={<Layout><Signup /></Layout>} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/signup-now" element={<Layout><SignupNow /></Layout>} />
-              <Route path="/dashboard/*" element={<Layout><Dashboard /></Layout>} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/markets/cryptocurrencies" element={<Layout><Cryptocurrencies /></Layout>} />
               <Route path="/markets/insights" element={<Layout><MarketInsights /></Layout>} />
               <Route path="/markets/ai-analysis" element={<Layout><AiAnalysis /></Layout>} />
