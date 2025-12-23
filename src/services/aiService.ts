@@ -139,7 +139,7 @@ const mockAnalysisResponses: Record<string, AIAnalysisResponse> = {
   }
 };
 
-export const getAIAnalysis = async (cryptoSymbol: string): Promise<AIAnalysisResponse> => {
+export const getAIAnalysis = async (cryptoSymbol: string, marketData?: any): Promise<AIAnalysisResponse> => {
   try {
     const symbol = cryptoSymbol.toUpperCase();
 
@@ -151,6 +151,18 @@ export const getAIAnalysis = async (cryptoSymbol: string): Promise<AIAnalysisRes
 
     // Make an actual API call to Groq
     console.log(`Calling Groq API for ${symbol} analysis`);
+
+    let userPrompt = `Provide a detailed analysis of ${cryptoSymbol} current market position, technical analysis, and future outlook. Structure your response with clear points.`;
+
+    // Inject live market data into the prompt if available
+    if (marketData) {
+      const price = marketData.quote?.USD?.price ? `$${marketData.quote.USD.price.toLocaleString()}` : "unknown";
+      const change24h = marketData.quote?.USD?.percent_change_24h ? `${marketData.quote.USD.percent_change_24h.toFixed(2)}%` : "unknown";
+      const volume = marketData.quote?.USD?.volume_24h ? `$${marketData.quote.USD.volume_24h.toLocaleString()}` : "unknown";
+
+      userPrompt += `\n\nContext based on LIVE DATA:\n- Current Price: ${price}\n- 24h Change: ${change24h}\n- 24h Volume: ${volume}\n\nPlease analyze this specific data in your response.`;
+    }
+
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -162,7 +174,7 @@ export const getAIAnalysis = async (cryptoSymbol: string): Promise<AIAnalysisRes
           },
           {
             role: "user",
-            content: `Provide a detailed analysis of ${cryptoSymbol} current market position, technical analysis, and future outlook. Structure your response with clear points.`
+            content: userPrompt
           }
         ],
       },

@@ -12,6 +12,17 @@ A smart, AI-powered crypto wallet that leverages real-time market analysis to he
 
 ---
 
+## 🏆 Track Alignment
+
+### How We Fit: "Making Sense of Live Data"
+This project directly addresses the challenge by integrating the **Gork API (Groq)** to analyze **live cryptocurrency data** in real-time.
+
+1.  **Live Empowerment**: We don't just show charts; we feed real-time pricing, volume, and volatility data specifically for assets like **Ethereum** directly into the Gork API.
+2.  **Actionable Intelligence**: The AI processes this live stream to generate "Buy", "Sell", or "Hold" signals with confidence scores, empowering users to make data-driven decisions instantly.
+3.  **Noise Reduction**: By synthesizing complex market metrics into clear, natural language insights, we make crypto accessible to newcomers, fulfilling the mission to "empower users."
+
+---
+
 ## 💡 Our Solution
 
 Evo AI Wallet provides:

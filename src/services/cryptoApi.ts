@@ -166,5 +166,21 @@ const mockCryptoData: CryptoData[] = [
       },
     },
   },
+  {
+    id: 2,
+    name: "Ethereum",
+    symbol: "ETH",
+    slug: "ethereum",
+    quote: {
+      USD: {
+        price: 3500,
+        volume_24h: 15000000000,
+        percent_change_1h: 0.2,
+        percent_change_24h: 1.5,
+        percent_change_7d: 3.2,
+        market_cap: 400000000000,
+      },
+    },
+  },
   // ... more mock data can be added
 ];

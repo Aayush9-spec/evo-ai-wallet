@@ -35,7 +35,7 @@ const AiAnalysis = () => {
       timestamp: new Date(),
     },
   ]);
-  
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<CryptoRecommendation[]>([]);
@@ -46,7 +46,7 @@ const AiAnalysis = () => {
 
   useEffect(() => {
     initializeSpeechRecognition();
-    
+
     return () => {
       if (recognitionRef.current) {
         try {
@@ -57,10 +57,10 @@ const AiAnalysis = () => {
       }
     };
   }, []);
-  
+
   const initializeSpeechRecognition = () => {
-    const SpeechRecognition = 
-      (window as any).SpeechRecognition || 
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
 
     if (SpeechRecognition) {
@@ -85,8 +85,8 @@ const AiAnalysis = () => {
         console.error('Speech recognition error', event);
         toast({
           title: "Speech Recognition Error",
-          description: event.error === 'no-speech' 
-            ? "No speech was detected. Please try again." 
+          description: event.error === 'no-speech'
+            ? "No speech was detected. Please try again."
             : "An error occurred during speech recognition.",
           variant: "destructive"
         });
@@ -129,17 +129,17 @@ const AiAnalysis = () => {
       }
     }
   };
-  
+
   useEffect(() => {
     const loadTopCryptos = async () => {
       try {
         const cryptos = await fetchTopCryptos(5);
         setTopCryptos(cryptos);
-        
+
         const initialRecs = await Promise.all(
           cryptos.slice(0, 3).map(async (crypto) => {
             try {
-              const analysis = await getAIAnalysis(crypto.symbol);
+              const analysis = await getAIAnalysis(crypto.symbol, crypto);
               return {
                 symbol: crypto.symbol,
                 name: crypto.name,
@@ -155,7 +155,7 @@ const AiAnalysis = () => {
             }
           })
         );
-        
+
         setRecommendations(initialRecs);
       } catch (error) {
         console.error("Failed to load top cryptocurrencies:", error);
@@ -166,61 +166,61 @@ const AiAnalysis = () => {
         });
       }
     };
-    
+
     loadTopCryptos();
   }, []);
-  
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
-  
+
   const handleSendMessage = async () => {
     if (!input.trim()) return;
-    
+
     const userMessage: Message = {
       id: Date.now().toString(),
       content: input,
       sender: "user",
       timestamp: new Date(),
     };
-    
+
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    
+
     try {
       toast({
         title: "Processing",
         description: "Analyzing your request...",
       });
-      
+
       const response = await getChatbotResponse(input);
-      
+
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: response,
         sender: "bot",
         timestamp: new Date(),
       };
-      
+
       setMessages((prev) => [...prev, botMessage]);
-      
+
       const cryptoMatches = input.match(/\b(BTC|ETH|BNB|XRP|DOGE|SOL|ADA)\b/gi);
       if (cryptoMatches && cryptoMatches.length > 0) {
         const symbol = cryptoMatches[0].toUpperCase();
         const crypto = topCryptos.find(c => c.symbol === symbol);
-        
+
         if (crypto) {
           try {
-            const analysis = await getAIAnalysis(symbol);
+            const analysis = await getAIAnalysis(symbol, crypto);
             const newRec = {
               symbol: symbol,
               name: crypto.name,
               analysis: analysis.analysis,
             };
-            
+
             setRecommendations((prev) => {
               const exists = prev.some(r => r.symbol === symbol);
               if (exists) {
@@ -241,16 +241,16 @@ const AiAnalysis = () => {
       }
     } catch (error) {
       console.error("Error getting chatbot response:", error);
-      
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: "Sorry, I encountered an issue processing your request. Please try again later.",
         sender: "bot",
         timestamp: new Date(),
       };
-      
+
       setMessages((prev) => [...prev, errorMessage]);
-      
+
       toast({
         title: "Error",
         description: "Failed to get AI response",
@@ -286,7 +286,7 @@ const AiAnalysis = () => {
   return (
     <div className="container mx-auto py-6 max-w-6xl">
       <h1 className="text-3xl font-bold mb-6">AI Crypto Analyst</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <Tabs defaultValue="chat">
@@ -307,16 +307,14 @@ const AiAnalysis = () => {
                       {messages.map((message) => (
                         <div
                           key={message.id}
-                          className={`flex ${
-                            message.sender === "user" ? "justify-end" : "justify-start"
-                          }`}
+                          className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"
+                            }`}
                         >
                           <div
-                            className={`max-w-[80%] rounded-xl p-3 ${
-                              message.sender === "user"
+                            className={`max-w-[80%] rounded-xl p-3 ${message.sender === "user"
                                 ? "bg-crypto-purple text-white rounded-tr-none"
                                 : "bg-muted rounded-tl-none"
-                            }`}
+                              }`}
                           >
                             {message.content}
                           </div>
@@ -342,11 +340,11 @@ const AiAnalysis = () => {
                     disabled={isLoading}
                     className="flex-1"
                   />
-                  <Button 
-                    onClick={toggleSpeechRecognition} 
+                  <Button
+                    onClick={toggleSpeechRecognition}
                     variant={isListening ? "destructive" : "outline"}
                     className={`${isListening ? 'bg-red-500 text-white' : ''}`}
-                    disabled={isLoading} 
+                    disabled={isLoading}
                     aria-label={isListening ? "Stop listening" : "Start voice input"}
                   >
                     {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -356,7 +354,7 @@ const AiAnalysis = () => {
                   </Button>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="suggestions">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 py-4">
                   {suggestions.map((suggestion) => (
@@ -374,7 +372,7 @@ const AiAnalysis = () => {
             </CardContent>
           </Tabs>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Latest Analyses</CardTitle>
@@ -393,8 +391,8 @@ const AiAnalysis = () => {
                       <Badge variant="outline">{rec.symbol}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{rec.analysis.slice(0, 150)}...</p>
-                    <Button 
-                      variant="link" 
+                    <Button
+                      variant="link"
                       className="px-0 text-xs"
                       onClick={() => sendQuickSuggestion(`Tell me more about ${rec.symbol}`)}
                     >
