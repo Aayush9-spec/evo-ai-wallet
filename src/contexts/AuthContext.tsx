@@ -28,42 +28,76 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const isMockMode = !import.meta.env.VITE_FIREBASE_API_KEY;
+
     useEffect(() => {
+        if (isMockMode) {
+            // Check local storage for mock user
+            const mockUser = localStorage.getItem("mock_user");
+            if (mockUser) {
+                setUser(JSON.parse(mockUser));
+            }
+            setLoading(false);
+            return;
+        }
+
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [isMockMode]);
 
     const signIn = async (email: string, password: string) => {
+        if (isMockMode) {
+            const mockUser = { email, displayName: email.split('@')[0], emailVerified: true } as User;
+            setUser(mockUser);
+            localStorage.setItem("mock_user", JSON.stringify(mockUser));
+            return;
+        }
         await signInWithEmailAndPassword(auth, email, password);
     };
 
     const signInWithGoogle = async () => {
+        if (isMockMode) {
+            const mockUser = { email: "google-user@example.com", displayName: "Google User", emailVerified: true } as User;
+            setUser(mockUser);
+            localStorage.setItem("mock_user", JSON.stringify(mockUser));
+            return;
+        }
         await signInWithPopup(auth, googleProvider);
     };
 
     const signUp = async (email: string, password: string, name: string) => {
+        if (isMockMode) {
+            const mockUser = { email, displayName: name, emailVerified: true } as User;
+            setUser(mockUser);
+            localStorage.setItem("mock_user", JSON.stringify(mockUser));
+            return;
+        }
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, {
             displayName: name,
         });
-        // Force reload user to get the updated display name
         await userCredential.user.reload();
         setUser(auth.currentUser);
-        // Send verification email
         await sendEmailVerification(userCredential.user);
     };
 
     const verifyEmail = async () => {
+        if (isMockMode) return;
         if (auth.currentUser) {
             await sendEmailVerification(auth.currentUser);
         }
     };
 
     const logOut = async () => {
+        if (isMockMode) {
+            setUser(null);
+            localStorage.removeItem("mock_user");
+            return;
+        }
         await signOut(auth);
     };
 

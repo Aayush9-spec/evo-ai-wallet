@@ -15,11 +15,35 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const isFirebaseConfigured = !!import.meta.env.VITE_FIREBASE_API_KEY;
 
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export { app, analytics };
+let app;
+let analytics;
+let auth: any = {
+  currentUser: null,
+  onAuthStateChanged: (callback: any) => {
+    // If not configured, immediately call back with null or mock user
+    setTimeout(() => callback(null), 100);
+    return () => {};
+  }
+};
+let googleProvider = {};
+let db = {};
+let storage = {};
+
+if (isFirebaseConfigured) {
+  try {
+    app = initializeApp(firebaseConfig);
+    analytics = getAnalytics(app);
+    auth = getAuth(app);
+    googleProvider = new GoogleAuthProvider();
+    db = getFirestore(app);
+    storage = getStorage(app);
+  } catch (error) {
+    console.error("Firebase initialization failed:", error);
+  }
+} else {
+  console.warn("Firebase API Key is missing. Running in mock mode.");
+}
+
+export { auth, googleProvider, db, storage, app, analytics };
