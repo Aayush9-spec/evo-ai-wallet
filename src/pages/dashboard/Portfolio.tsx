@@ -4,38 +4,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { ArrowUpRight, ArrowDownRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
+import { usePortfolio } from "@/contexts/PortfolioContext";
 import { fetchTopCryptos } from "@/services/cryptoApi";
 
 const Portfolio = () => {
-  const [portfolioData, setPortfolioData] = useState([
-    { name: "Bitcoin", value: 45, color: "#F7931A", amount: 0.75, price: 0, change: 0, symbol: "BTC" },
-    { name: "Ethereum", value: 30, color: "#627EEA", amount: 5.2, price: 0, change: 0, symbol: "ETH" },
-    { name: "Solana", value: 15, color: "#9945FF", amount: 42.5, price: 0, change: 0, symbol: "SOL" },
-    { name: "Cardano", value: 10, color: "#0033AD", amount: 1020, price: 0, change: 0, symbol: "ADA" },
-  ]);
+  const { balance, assets } = usePortfolio();
+  const [portfolioData, setPortfolioData] = useState<any[]>([]);
 
   useEffect(() => {
     const loadPrices = async () => {
       const cryptos = await fetchTopCryptos(20);
       if (cryptos) {
-        setPortfolioData(prevData => prevData.map(item => {
-          const crypto = cryptos.find(c => c.symbol === item.symbol);
-          if (crypto) {
-            return {
-              ...item,
-              price: crypto.quote.USD.price,
-              change: crypto.quote.USD.percent_change_24h
-            };
-          }
-          return item;
+        setPortfolioData((assets || []).map(item => {
+          const crypto = cryptos?.find(c => c.symbol === item.symbol);
+          return {
+            ...item,
+            value: item.amount || 0,
+            price: crypto?.quote?.USD?.price || item.avgPrice || 0,
+            change: crypto?.quote?.USD?.percent_change_24h || 0
+          };
         }));
+      } else {
+        setPortfolioData((assets || []).map(item => ({
+          ...item,
+          value: item.amount || 0,
+          price: item.avgPrice || 0,
+          change: 0
+        })));
       }
     };
     loadPrices();
-  }, []);
+  }, [assets]);
 
-  const totalValue = portfolioData.reduce((acc, coin) => acc + coin.amount * coin.price, 0);
+  const totalValue = (portfolioData || []).reduce((acc, coin) => acc + (coin.amount || 0) * (coin.price || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -44,9 +47,17 @@ const Portfolio = () => {
           <h1 className="text-3xl font-bold">Your Portfolio</h1>
           <p className="text-muted-foreground">Track and manage your crypto assets</p>
         </div>
-        <Button className="mt-4 sm:mt-0 bg-crypto-purple hover:bg-crypto-deep-purple flex gap-2">
-          <Plus size={16} /> Add Asset
-        </Button>
+        <div className="flex gap-4 mt-4 sm:mt-0">
+           <div className="bg-card p-3 rounded-lg border flex flex-col items-end">
+              <span className="text-xs text-muted-foreground uppercase">Available Cash</span>
+              <span className="font-bold text-xl text-crypto-green">${(balance || 0).toLocaleString()}</span>
+           </div>
+          <Link to="/markets/cryptocurrencies">
+            <Button className="h-full bg-crypto-purple hover:bg-crypto-deep-purple flex gap-2">
+              <Plus size={16} /> Add Asset
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card className="border border-border hover-scale animate-fade-in">
@@ -58,39 +69,45 @@ const Portfolio = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <div className="flex flex-col items-center justify-center h-full">
-                <p className="text-sm text-muted-foreground">Total Value</p>
-                <p className="text-4xl font-bold">${totalValue.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Portfolio Value</p>
+                <p className="text-4xl font-bold">${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                 <div className="flex items-center text-crypto-green mt-2">
                   <ArrowUpRight size={16} />
-                  <span className="text-sm">2.4% ($1,240) today</span>
+                  <span className="text-sm">Mock Data • Live Prices</span>
                 </div>
               </div>
             </div>
             <div className="lg:col-span-2">
               <div style={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={portfolioData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {portfolioData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value, name) => [`${value}%`, name]}
-                      contentStyle={{ backgroundColor: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)' }}
-                    />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                {portfolioData && portfolioData.length > 0 ? (
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={portfolioData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {(portfolioData || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color || "#ccc"} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value, name) => [`${value}`, name]}
+                        contentStyle={{ backgroundColor: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)' }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground italic">
+                    No assets in portfolio. Start by buying some coins!
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -110,33 +127,40 @@ const Portfolio = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {portfolioData.map((coin, index) => (
-              <tr key={coin.name} className="hover:bg-muted/50 transition-colors">
+            {(portfolioData || []).map((coin, index) => (
+              <tr key={coin.symbol || index} className="hover:bg-muted/50 transition-colors">
                 <td className="px-4 py-4">
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full" style={{ backgroundColor: coin.color }}></div>
+                    <div className="w-8 h-8 rounded-full" style={{ backgroundColor: coin.color || "#ccc" }}></div>
                     <div className="ml-3">
-                      <div className="font-medium">{coin.name}</div>
+                      <div className="font-medium">{coin.name || "Unknown"}</div>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-4 text-right font-medium">
-                  {coin.amount} {coin.name.substring(0, 3).toUpperCase()}
+                  {(coin.amount || 0).toLocaleString()} {coin.symbol || ""}
                 </td>
                 <td className="px-4 py-4 text-right font-medium">
-                  ${coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${(coin.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td className="px-4 py-4 text-right font-medium">
-                  ${(coin.amount * coin.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${((coin.amount || 0) * (coin.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
-                <td className={`px-4 py-4 text-right ${coin.change > 0 ? 'text-crypto-green' : 'text-crypto-red'}`}>
+                <td className={`px-4 py-4 text-right ${(coin.change || 0) >= 0 ? 'text-crypto-green' : 'text-crypto-red'}`}>
                   <div className="flex items-center justify-end">
-                    {coin.change > 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-                    <span>{Math.abs(coin.change)}%</span>
+                    {(coin.change || 0) >= 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                    <span>{Math.abs(coin.change || 0).toFixed(2)}%</span>
                   </div>
                 </td>
               </tr>
             ))}
+            {(!portfolioData || portfolioData.length === 0) && (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground italic">
+                  Your portfolio is currently empty.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
