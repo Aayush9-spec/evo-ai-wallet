@@ -12,7 +12,7 @@ if (!((import.meta.env as any).VITE_GROQ_API_KEY)) {
 }
 
 // Flag to toggle between mock and production API calls
-const USE_MOCK_DATA = false; // Set to false to use real API
+const USE_MOCK_DATA = true; // Set to true to use mock data without API key
 
 interface AIAnalysisResponse {
   analysis: string;
