@@ -8,19 +8,23 @@ const Index = () => {
   const features = [{
     icon: <BarChart3 className="h-8 w-8 text-crypto-purple" />,
     title: "Real-time Crypto Tracking",
-    description: "Track cryptocurrency prices and market movements with interactive charts and real-time updates."
+    description: "Track cryptocurrency prices and market movements with interactive charts and real-time updates.",
+    path: "/markets/cryptocurrencies"
   }, {
     icon: <Brain className="h-8 w-8 text-crypto-purple" />,
     title: "AI-Powered Analysis",
-    description: "Get intelligent insights and predictions about market trends using our advanced AI technology."
+    description: "Get intelligent insights and predictions about market trends using our advanced AI technology.",
+    path: "/markets/ai-analysis"
   }, {
     icon: <MessageSquare className="h-8 w-8 text-crypto-purple" />,
     title: "AI Assistant",
-    description: "Chat with our AI assistant to find the best investment opportunities and get personalized advice."
+    description: "Chat with our AI assistant to find the best investment opportunities and get personalized advice.",
+    path: "/markets/ai-assistant"
   }, {
     icon: <Sparkles className="h-8 w-8 text-crypto-purple" />,
     title: "Market Insights",
-    description: "Access expert analysis and in-depth market reports to make informed investment decisions."
+    description: "Access expert analysis and in-depth market reports to make informed investment decisions.",
+    path: "/markets/insights"
   }];
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-10 to-blue-50">
@@ -33,7 +37,7 @@ const Index = () => {
                 <span className="gradient-text font-semibold">Next-Gen Crypto Platform</span>
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter">
-                <span className="gradient-text">EVO AI Wallet</span> 
+                <span className="gradient-text">EVO AI</span> 
                 <br />
                 <span>Your Intelligent Crypto Companion</span>
               </h1>
@@ -78,15 +82,19 @@ const Index = () => {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {features.map((feature, i) => <Card key={i} className="crypto-card hover-scale">
-                <CardHeader>
-                  <div className="mb-2">{feature.icon}</div>
-                  <CardTitle>{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>{feature.description}</CardDescription>
-                </CardContent>
-              </Card>)}
+            {features.map((feature, i) => (
+              <Link key={i} to={feature.path} className="block">
+                <Card className="crypto-card hover-scale h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-crypto-purple/10">
+                  <CardHeader>
+                    <div className="mb-2">{feature.icon}</div>
+                    <CardTitle>{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
