@@ -38,12 +38,12 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/ai-analysis" className="text-muted-foreground hover:text-primary text-sm transition-colors">
+                <Link to="/markets/ai-analysis" className="text-muted-foreground hover:text-primary text-sm transition-colors">
                   AI Analysis
                 </Link>
               </li>
               <li>
-                <Link to="/chatbot" className="text-muted-foreground hover:text-primary text-sm transition-colors">
+                <Link to="/markets/ai-assistant" className="text-muted-foreground hover:text-primary text-sm transition-colors">
                   AI Assistant
                 </Link>
               </li>
