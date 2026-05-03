@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { ArrowUpIcon, ArrowDownIcon, ArrowRightIcon, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, ArrowRightIcon, RefreshCw, AlertCircle, Search } from "lucide-react";
 
 interface CryptoData {
   id: number;
@@ -51,6 +51,10 @@ const Cryptocurrencies = () => {
   const [isUsingMockData, setIsUsingMockData] = useState(false);
   const [tradeAmount, setTradeAmount] = useState<string>("0.1");
   const [search, setSearch] = useState(urlSearch);
+
+  useEffect(() => {
+    setSearch(urlSearch);
+  }, [urlSearch]);
 
   const handleBuy = () => {
     if (!selectedCrypto) return;
