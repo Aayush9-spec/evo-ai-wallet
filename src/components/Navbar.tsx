@@ -20,8 +20,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 export function Navbar() {
+  const { toast } = useToast();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { user, logOut } = useAuth();
@@ -219,6 +221,14 @@ export function Navbar() {
               </>
             ) : (
               <div className="hidden md:flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  className="hidden xl:flex border-crypto-purple text-crypto-purple hover:bg-crypto-purple hover:text-white"
+                  onClick={() => toast({ title: "Wallet Connection", description: "MetaMask connection simulated successfully!" })}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Connect Wallet
+                </Button>
                 <Link to="/login">
                   <Button variant="ghost">Log in</Button>
                 </Link>
