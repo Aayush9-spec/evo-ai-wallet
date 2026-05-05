@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useWeb3 } from "@/contexts/Web3Context";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { user, logOut } = useAuth();
+  const { isConnected, connectWallet, address, disconnectWallet } = useWeb3();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -164,6 +166,26 @@ export function Navbar() {
           <div className="flex items-center space-x-2 ml-4">
             <ThemeToggle />
             
+            {isConnected ? (
+              <Button 
+                variant="outline" 
+                className="hidden xl:flex border-crypto-green text-crypto-green hover:bg-crypto-green hover:text-white"
+                onClick={disconnectWallet}
+              >
+                <div className="w-2 h-2 bg-crypto-green rounded-full mr-2 animate-pulse" />
+                {address?.slice(0, 6)}...{address?.slice(-4)}
+              </Button>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="hidden xl:flex border-crypto-purple text-crypto-purple hover:bg-crypto-purple hover:text-white"
+                onClick={connectWallet}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Connect Wallet
+              </Button>
+            )}
+
             {user ? (
               <>
                 <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary rounded-full hidden sm:flex">
@@ -221,14 +243,6 @@ export function Navbar() {
               </>
             ) : (
               <div className="hidden md:flex items-center space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="hidden xl:flex border-crypto-purple text-crypto-purple hover:bg-crypto-purple hover:text-white"
-                  onClick={() => toast({ title: "Wallet Connection", description: "MetaMask connection simulated successfully!" })}
-                >
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Connect Wallet
-                </Button>
                 <Link to="/login">
                   <Button variant="ghost">Log in</Button>
                 </Link>
