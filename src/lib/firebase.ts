@@ -21,9 +21,10 @@ let app;
 let analytics;
 let auth: any = {
   currentUser: null,
-  onAuthStateChanged: (callback: any) => {
-    // If not configured, immediately call back with null or mock user
-    setTimeout(() => callback(null), 100);
+  onAuthStateChanged: (authInstance: any, callback: any) => {
+    // Handle both (callback) and (auth, callback) signatures for robustness
+    const cb = typeof authInstance === 'function' ? authInstance : callback;
+    setTimeout(() => cb(null), 100);
     return () => {};
   }
 };

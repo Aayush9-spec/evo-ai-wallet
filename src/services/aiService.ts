@@ -1,18 +1,9 @@
-
 import axios from "axios";
 
-// Prefer environment variable (Vite exposes variables prefixed with VITE_ to the client).
-// If an env var is not provided, we fallback to the in-repo key for backward compatibility,
-// but this is unsafe for public repos and should be replaced with a secret in CI/CD.
-const GROQ_API_KEY = (import.meta.env as any).VITE_GROQ_API_KEY || "enter your gork api";
-
-if (!((import.meta.env as any).VITE_GROQ_API_KEY)) {
-  // Warn in dev when the repo contains a hardcoded key
-  console.warn("Using hardcoded Groq API key. Move the key to an environment variable VITE_GROQ_API_KEY to avoid committing secrets.");
-}
+const getApiKey = () => localStorage.getItem("GROQ_API_KEY") || (import.meta.env as any).VITE_GROQ_API_KEY;
 
 // Flag to toggle between mock and production API calls
-const USE_MOCK_DATA = true; // Set to true to use mock data without API key
+const isMockMode = () => !getApiKey(); 
 
 interface AIAnalysisResponse {
   analysis: string;
@@ -144,7 +135,7 @@ export const getAIAnalysis = async (cryptoSymbol: string, marketData?: any): Pro
     const symbol = cryptoSymbol.toUpperCase();
 
     // Use mock data if flag is true and we have a mock response for this symbol
-    if (USE_MOCK_DATA && mockAnalysisResponses[symbol]) {
+    if (isMockMode() && mockAnalysisResponses[symbol]) {
       console.log(`Using mock data for ${symbol}`);
       return mockAnalysisResponses[symbol];
     }
@@ -180,7 +171,7 @@ export const getAIAnalysis = async (cryptoSymbol: string, marketData?: any): Pro
       },
       {
         headers: {
-          "Authorization": `Bearer ${GROQ_API_KEY}`,
+          "Authorization": `Bearer ${getApiKey()}`,
           "Content-Type": "application/json",
         },
       }
@@ -232,7 +223,7 @@ export const getAIAnalysis = async (cryptoSymbol: string, marketData?: any): Pro
 export const getChatbotResponse = async (message: string): Promise<string> => {
   try {
     // Use mock responses if flag is true
-    if (USE_MOCK_DATA) {
+    if (isMockMode()) {
       console.log("Using mock chatbot response");
       // Mock responses for specific queries
       if (message.toLowerCase().includes("bitcoin") || message.toLowerCase().includes("btc")) {
@@ -267,7 +258,7 @@ export const getChatbotResponse = async (message: string): Promise<string> => {
       },
       {
         headers: {
-          "Authorization": `Bearer ${GROQ_API_KEY}`,
+          "Authorization": `Bearer ${getApiKey()}`,
           "Content-Type": "application/json",
         },
       }
@@ -294,55 +285,156 @@ export const getChatbotResponse = async (message: string): Promise<string> => {
   }
 };
 
-// Mock market insights data
+// Agentic AI: Response structure for tool calling
+export interface AIAgentResponse {
+  message: string;
+  action?: {
+    type: "buy" | "sell" | "analyze_portfolio";
+    symbol?: string;
+    amount?: number;
+    reasoning?: string;
+  };
+}
+
+import { fetchTopCryptos } from "./cryptoApi";
+
+// Agentic AI: Main function to handle reasoning and tool calls
+export const getAgentResponse = async (
+  message: string, 
+  portfolioData: { balance: number; assets: any[] }
+): Promise<AIAgentResponse> => {
+  try {
+    const cryptos = await fetchTopCryptos(5);
+    const marketContext = cryptos?.map(c => `${c.name}: $${c.quote.USD.price} (${c.quote.USD.percent_change_24h}% 24h)`).join(", ");
+
+    if (isMockMode()) {
+      const lowerMsg = message.toLowerCase();
+      
+      // Advanced mock agent logic
+      if (lowerMsg.includes("buy") || lowerMsg.includes("invest")) {
+        const symbol = lowerMsg.includes("btc") ? "BTC" : lowerMsg.includes("eth") ? "ETH" : "SOL";
+        const price = cryptos?.find(c => c.symbol === symbol)?.quote.USD.price || 50000;
+        
+        return {
+          message: `I've analyzed the current market for ${symbol}. It's currently trading at $${price.toLocaleString()}. Given your balance of $${portfolioData.balance.toLocaleString()}, I recommend opening a position.`,
+          action: {
+            type: "buy",
+            symbol: symbol,
+            amount: symbol === "BTC" ? 0.05 : 1,
+            reasoning: `Market indicators for ${symbol} suggest an accumulation phase. Current price of $${price} is attractive for a long-term position.`
+          }
+        };
+      }
+
+      if (lowerMsg.includes("how much") || lowerMsg.includes("portfolio") || lowerMsg.includes("balance") || lowerMsg.includes("analyze")) {
+        const totalValue = portfolioData.assets.reduce((acc, curr) => acc + (curr.amount * curr.avgPrice), portfolioData.balance);
+        return {
+          message: `Your total portfolio value is approximately $${totalValue.toLocaleString()}. You currently hold ${portfolioData.assets.length} assets. Market context: ${marketContext}.`,
+          action: {
+            type: "analyze_portfolio",
+            reasoning: "User requested portfolio overview."
+          }
+        };
+      }
+
+      return {
+        message: `I'm your Evo AI Agent. Current market snapshot: ${marketContext}. How can I help you manage your wealth today?`
+      };
+    }
+
+    // Real API implementation with System Prompt for Tool Calling
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          {
+            role: "system",
+            content: `You are the Evo AI Agent, a sophisticated crypto fund manager. 
+            You have access to the user's LIVE portfolio:
+            - Balance: $${portfolioData.balance}
+            - Assets: ${JSON.stringify(portfolioData.assets)}
+            - Market Snapshot: ${marketContext}
+
+            Your goal is to assist the user in managing their wealth. 
+            If the user wants to trade or needs a specific action, you MUST respond in JSON format:
+            {
+              "message": "Your natural language response here",
+              "action": {
+                "type": "buy" | "sell" | "analyze_portfolio",
+                "symbol": "TICKER",
+                "amount": number,
+                "reasoning": "Brief explanation"
+              }
+            }
+            If no action is needed, just return the JSON with only the "message" field.`
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ],
+        response_format: { type: "json_object" }
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("GROQ_API_KEY") || ""}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const content = JSON.parse(response?.data?.choices?.[0]?.message?.content || "{}");
+    return content as AIAgentResponse;
+  } catch (error) {
+    console.error("Agentic AI Error:", error);
+    return {
+      message: "I encountered an error while processing your request. Please try again."
+    };
+  }
+};
+
+// Real Market Insights data from API
 export const getMarketInsights = async () => {
-  // This would typically come from an AI analysis or a database
+  const cryptos = await fetchTopCryptos(10);
+  
+  if (!cryptos) return null;
+
+  const topGainer = [...cryptos].sort((a, b) => b.quote.USD.percent_change_24h - a.quote.USD.percent_change_24h)[0];
+  const topLoser = [...cryptos].sort((a, b) => a.quote.USD.percent_change_24h - b.quote.USD.percent_change_24h)[0];
+
   return {
     marketOverview: {
-      title: "Market Overview",
-      content: "The cryptocurrency market is showing signs of recovery after recent volatility. Bitcoin dominance has decreased slightly to 45%, indicating increased interest in altcoins. Overall market sentiment remains cautiously optimistic as institutional adoption continues to grow."
+      title: "Real-Time Market Pulse",
+      content: `Global market cap is shifting. ${topGainer.name} is leading the rally with a ${topGainer.quote.USD.percent_change_24h.toFixed(2)}% gain, while ${topLoser.name} is seeing some correction.`
     },
     trendingTopics: [
       {
-        title: "DeFi Resurgence",
-        content: "Decentralized finance protocols are seeing renewed interest with total value locked (TVL) increasing by 15% in the past week. Lending and staking platforms are leading this growth."
+        title: `${topGainer.symbol} Momentum`,
+        content: `${topGainer.name} price has reached $${topGainer.quote.USD.price.toLocaleString()}, signaling strong institutional interest.`
       },
       {
-        title: "NFT Market Evolution",
-        content: "The NFT market is pivoting toward utility-focused projects and gaming integrations, moving away from pure digital art. Trading volumes for gaming-related NFTs have increased by 30%."
-      },
-      {
-        title: "Layer-2 Solutions Expanding",
-        content: "Ethereum scaling solutions are gaining significant traction as gas fees on the main network remain high. Projects implementing rollup technology have seen a 40% increase in user activity."
+        title: "Volatility Alert",
+        content: `Average market volatility is at ${Math.abs(topLoser.quote.USD.percent_change_24h).toFixed(1)}%. Traders should monitor stop-loss levels.`
       }
     ],
     topMovers: {
-      gainers: [
-        { name: "Arbitrum", symbol: "ARB", change: "+28.5%" },
-        { name: "Solana", symbol: "SOL", change: "+17.2%" },
-        { name: "Avalanche", symbol: "AVAX", change: "+15.8%" }
-      ],
-      losers: [
-        { name: "Internet Computer", symbol: "ICP", change: "-12.3%" },
-        { name: "Filecoin", symbol: "FIL", change: "-8.7%" },
-        { name: "Cosmos", symbol: "ATOM", change: "-6.4%" }
-      ]
+      gainers: cryptos.filter(c => c.quote.USD.percent_change_24h > 0).slice(0, 3).map(c => ({
+        name: c.name,
+        symbol: c.symbol,
+        change: `+${c.quote.USD.percent_change_24h.toFixed(2)}%`
+      })),
+      losers: cryptos.filter(c => c.quote.USD.percent_change_24h < 0).slice(0, 3).map(c => ({
+        name: c.name,
+        symbol: c.symbol,
+        change: `${c.quote.USD.percent_change_24h.toFixed(2)}%`
+      }))
     },
     upcomingEvents: [
       {
-        title: "Ethereum Shanghai Upgrade",
-        date: "April 30, 2025",
-        description: "Enables withdrawal of staked ETH and implements several EIPs focused on optimization"
-      },
-      {
-        title: "Bitcoin Halving",
-        date: "March 2028",
-        description: "Block rewards will be reduced from 3.125 to 1.5625 BTC, historically a bullish event"
-      },
-      {
-        title: "Cardano Hydra Update",
-        date: "Q3 2025",
-        description: "Layer-2 scaling solution promising up to 1,000 TPS per Hydra head"
+        title: "Dynamic Price Discovery",
+        date: "NOW",
+        description: `Live streaming data for ${cryptos.length} primary assets is currently active.`
       }
     ]
   };
