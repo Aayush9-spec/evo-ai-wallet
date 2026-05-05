@@ -10,13 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { getChatbotResponse } from "@/services/aiService";
+import { getChatbotResponse, getAgentResponse, AIAgentResponse, getMarketInsights } from "@/services/aiService";
+import { usePortfolio } from "@/contexts/PortfolioContext";
+import { fetchTopCryptos } from "@/services/cryptoApi";
+import { useWeb3 } from "@/contexts/Web3Context";
+import { executeTrade } from "@/services/tradeExecutor";
+import { ethers } from "ethers";
 
 interface Message {
   id: string;
   content: string;
   sender: "user" | "bot";
   timestamp: Date;
+  action?: AIAgentResponse["action"];
 }
 
 interface Topic {
@@ -35,9 +41,13 @@ const AiAssistant = () => {
     },
   ]);
   
+  const { balance, assets, buyAsset, sellAsset } = usePortfolio();
+  const { isConnected, signer, address } = useWeb3();
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [marketData, setMarketData] = useState<any>(null);
+  const [sentiment, setSentiment] = useState(50);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   
@@ -85,6 +95,17 @@ const AiAssistant = () => {
   }, [messages]);
   
   useEffect(() => {
+    const loadMarketData = async () => {
+      const insights = await getMarketInsights();
+      setMarketData(insights);
+      
+      const cryptos = await fetchTopCryptos(10);
+      if (cryptos) {
+        const avgChange = cryptos.reduce((acc, c) => acc + c.quote.USD.percent_change_24h, 0) / cryptos.length;
+        setSentiment(50 + (avgChange * 5)); // Map avg change to 0-100 scale
+      }
+    };
+    loadMarketData();
     initializeSpeechRecognition();
     
     return () => {
@@ -191,13 +212,14 @@ const AiAssistant = () => {
         description: "Getting AI response...",
       });
       
-      const response = await getChatbotResponse(input);
+      const agentData = await getAgentResponse(input, { balance, assets });
       
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: response,
+        content: agentData.message,
         sender: "bot",
         timestamp: new Date(),
+        action: agentData.action
       };
       
       setMessages((prev) => [...prev, botMessage]);
@@ -282,6 +304,43 @@ const AiAssistant = () => {
                             }`}
                           >
                             {message.content}
+                            
+                            {message.action && message.action.type !== "analyze_portfolio" && (
+                              <div className="mt-3 p-3 bg-background/50 rounded-lg border border-border">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Proposed {message.action.type}
+                                  </span>
+                                  <Badge variant="outline" className="bg-crypto-purple/10 text-crypto-purple">
+                                    {message.action.symbol}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm mb-3 text-foreground/80 italic">
+                                  "{message.action.reasoning}"
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    className="flex-1 bg-crypto-purple hover:bg-crypto-purple/90 h-8"
+                                    onClick={() => {
+                                      try {
+                                        if (message.action?.type === "buy") {
+                                          buyAsset(message.action.symbol!, message.action.symbol!, message.action.amount!, 65000, "#F7931A");
+                                        } else {
+                                          sellAsset(message.action.symbol!, message.action.amount!, 65000);
+                                        }
+                                        toast({ title: "Trade Executed", description: `Successfully ${message.action?.type}ed ${message.action?.amount} ${message.action?.symbol}` });
+                                      } catch (e: any) {
+                                        toast({ title: "Trade Failed", description: e.message, variant: "destructive" });
+                                      }
+                                    }}
+                                  >
+                                    Confirm {message.action.type === "buy" ? "Purchase" : "Sale"}
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-8">Dismiss</Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -385,93 +444,78 @@ const AiAssistant = () => {
           </Tabs>
         </Card>
         
-        <Card>
+        <Card className="hud-panel border-accent/20">
           <CardHeader>
-            <CardTitle>Investment Insights</CardTitle>
-            <CardDescription>
-              Current market trends and investment opportunities
+            <CardTitle className="text-accent neon-text">Market_Intelligence</CardTitle>
+            <CardDescription className="text-[10px] font-mono tracking-widest">
+              LIVE_SENTIMENT_ANALYSIS
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-sm font-medium mb-3">Market Sentiment</h3>
+              <h3 className="text-xs font-mono mb-3 uppercase tracking-widest text-muted-foreground">Market_Bias</h3>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Bearish</span>
-                <div className="w-2/3 h-2 bg-muted rounded-full">
-                  <div className="h-full bg-amber-500 rounded-full" style={{ width: '65%' }}></div>
+                <span className="text-[10px] font-bold text-destructive uppercase">Fear</span>
+                <div className="w-2/3 h-1.5 bg-primary/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-accent transition-all duration-1000 shadow-[0_0_10px_rgba(6,182,212,0.5)]" 
+                    style={{ width: `${sentiment}%` }}
+                  ></div>
                 </div>
-                <span className="text-sm">Bullish</span>
+                <span className="text-[10px] font-bold text-accent uppercase">Greed</span>
               </div>
             </div>
             
-            <Separator />
+            <Separator className="bg-primary/10" />
             
             <div>
-              <h3 className="text-sm font-medium mb-3">Top Opportunities</h3>
+              <h3 className="text-xs font-mono mb-3 uppercase tracking-widest text-muted-foreground">Top_Movers</h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">BTC</Badge>
-                    <span className="text-sm font-medium">Bitcoin</span>
+                {marketData?.topMovers.gainers.slice(0, 3).map((coin: any) => (
+                  <div key={coin.symbol} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[9px] font-mono border-primary/20">{coin.symbol}</Badge>
+                      <span className="text-xs font-medium group-hover:text-primary transition-colors">{coin.name}</span>
+                    </div>
+                    <Badge className="bg-accent/20 text-accent border-accent/30 text-[10px]">{coin.change}</Badge>
                   </div>
-                  <Badge className="bg-green-500">Buy</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">ETH</Badge>
-                    <span className="text-sm font-medium">Ethereum</span>
+                ))}
+                {marketData?.topMovers.losers.slice(0, 1).map((coin: any) => (
+                  <div key={coin.symbol} className="flex items-center justify-between opacity-60">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[9px] font-mono">{coin.symbol}</Badge>
+                      <span className="text-xs font-medium">{coin.name}</span>
+                    </div>
+                    <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">{coin.change}</Badge>
                   </div>
-                  <Badge className="bg-green-500">Buy</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">SOL</Badge>
-                    <span className="text-sm font-medium">Solana</span>
-                  </div>
-                  <Badge className="bg-amber-500">Hold</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">DOGE</Badge>
-                    <span className="text-sm font-medium">Dogecoin</span>
-                  </div>
-                  <Badge className="bg-red-500">Sell</Badge>
-                </div>
+                ))}
               </div>
             </div>
             
-            <Separator />
+            <Separator className="bg-primary/10" />
             
             <div>
-              <h3 className="text-sm font-medium mb-3">Upcoming Market Events</h3>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Ethereum Protocol Update</span>
-                    <Badge variant="outline">Apr 30</Badge>
+              <h3 className="text-xs font-mono mb-3 uppercase tracking-widest text-muted-foreground">Neural_Insights</h3>
+              <div className="space-y-4">
+                {marketData?.trendingTopics.slice(0, 2).map((topic: any, i: number) => (
+                  <div key={i} className="p-2 rounded bg-primary/5 border border-primary/10">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-primary uppercase">{topic.title}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      {topic.content}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Expected to improve scalability and reduce gas fees
-                  </p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">US Fed Interest Rate Decision</span>
-                    <Badge variant="outline">May 15</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Could impact market liquidity and crypto prices
-                  </p>
-                </div>
+                ))}
               </div>
             </div>
             
             <Button 
               variant="outline" 
-              className="w-full mt-4"
-              onClick={() => sendQuickMessage("What's the current market sentiment?")}
+              className="w-full mt-4 text-[10px] font-mono tracking-[0.2em] border-primary/30 hover:bg-primary/10"
+              onClick={() => sendQuickMessage("Provide a deep analysis of current market movers")}
             >
-              Ask about market trends
+              GENERATE_QUANT_REPORT
             </Button>
           </CardContent>
         </Card>
