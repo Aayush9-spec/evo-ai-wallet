@@ -1,5 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "./AuthContext";
+import { toast } from "sonner";
 
 export interface Asset {
   symbol: string;
@@ -31,25 +35,96 @@ interface PortfolioContextType {
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
 export const PortfolioProvider = ({ children }: { children: React.ReactNode }) => {
-  const [balance, setBalance] = useState(50000); // Start with $50k mock cash
-  const [assets, setAssets] = useState<Asset[]>(() => {
-    const saved = localStorage.getItem("portfolio_assets");
-    return saved ? JSON.parse(saved) : [
-      { symbol: "BTC", name: "Bitcoin", amount: 0.5, avgPrice: 60000, color: "#F7931A" },
-      { symbol: "ETH", name: "Ethereum", amount: 4, avgPrice: 3000, color: "#627EEA" },
-    ];
-  });
+  const { user } = useAuth();
+  const [balance, setBalance] = useState(50000);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem("portfolio_transactions");
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  // Load Initial Data (Firestore or LocalStorage)
   useEffect(() => {
-    localStorage.setItem("portfolio_assets", JSON.stringify(assets));
-    localStorage.setItem("portfolio_transactions", JSON.stringify(transactions));
-    localStorage.setItem("portfolio_balance", balance.toString());
-  }, [assets, transactions, balance]);
+    const loadData = async () => {
+      if (user && db && Object.keys(db).length > 0) {
+        try {
+          const docRef = doc(db, "portfolios", user.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setBalance(data.balance ?? 50000);
+            setAssets(data.assets ?? []);
+            setTransactions(data.transactions ?? []);
+          } else {
+            // New user, set defaults
+            const defaultAssets = [
+              { symbol: "BTC", name: "Bitcoin", amount: 0.5, avgPrice: 60000, color: "#F7931A" },
+              { symbol: "ETH", name: "Ethereum", amount: 4, avgPrice: 3000, color: "#627EEA" },
+            ];
+            setAssets(defaultAssets);
+            await setDoc(docRef, { balance: 50000, assets: defaultAssets, transactions: [] });
+          }
+        } catch (error) {
+          console.error("Firestore Load Failed:", error);
+          loadFromLocalStorage();
+        }
+      } else {
+        loadFromLocalStorage();
+      }
+      setIsInitialLoad(false);
+    };
+
+    const loadFromLocalStorage = () => {
+      try {
+        const savedAssets = localStorage.getItem("portfolio_assets");
+        const savedTx = localStorage.getItem("portfolio_transactions");
+        const savedBal = localStorage.getItem("portfolio_balance");
+        
+        if (savedAssets) setAssets(JSON.parse(savedAssets));
+        else setAssets([
+          { symbol: "BTC", name: "Bitcoin", amount: 0.5, avgPrice: 60000, color: "#F7931A" },
+          { symbol: "ETH", name: "Ethereum", amount: 4, avgPrice: 3000, color: "#627EEA" },
+        ]);
+        
+        if (savedTx) setTransactions(JSON.parse(savedTx));
+        if (savedBal) setBalance(parseFloat(savedBal));
+      } catch (error) {
+        console.error("Failed to load portfolio from localStorage:", error);
+        // Fallback defaults
+        setAssets([
+          { symbol: "BTC", name: "Bitcoin", amount: 0.5, avgPrice: 60000, color: "#F7931A" },
+          { symbol: "ETH", name: "Ethereum", amount: 4, avgPrice: 3000, color: "#627EEA" },
+        ]);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  // Sync Changes
+  useEffect(() => {
+    if (isInitialLoad) return;
+
+    const syncData = async () => {
+      localStorage.setItem("portfolio_assets", JSON.stringify(assets));
+      localStorage.setItem("portfolio_transactions", JSON.stringify(transactions));
+      localStorage.setItem("portfolio_balance", balance.toString());
+
+      if (user && db && Object.keys(db).length > 0) {
+        try {
+          await setDoc(doc(db, "portfolios", user.uid), {
+            balance,
+            assets,
+            transactions,
+            lastUpdated: new Date().toISOString()
+          }, { merge: true });
+        } catch (error) {
+          console.error("Firestore Sync Failed:", error);
+        }
+      }
+    };
+
+    syncData();
+  }, [assets, transactions, balance, user, isInitialLoad]);
 
   const buyAsset = (symbol: string, name: string, amount: number, price: number, color: string) => {
     const totalCost = amount * price;

@@ -32,10 +32,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         if (isMockMode) {
-            // Check local storage for mock user
-            const mockUser = localStorage.getItem("mock_user");
-            if (mockUser) {
-                setUser(JSON.parse(mockUser));
+            try {
+                const mockUser = localStorage.getItem("mock_user");
+                if (mockUser) {
+                    setUser(JSON.parse(mockUser));
+                }
+            } catch (error) {
+                console.error("Failed to parse mock user:", error);
+                localStorage.removeItem("mock_user");
             }
             setLoading(false);
             return;
